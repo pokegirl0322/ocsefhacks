@@ -365,8 +365,108 @@ public class CitySimulator : MonoBehaviour
             dropdownRect.offsetMin = Vector2.zero;
             dropdownRect.offsetMax = Vector2.zero;
             
+            // Add background image
+            Image dropdownImage = dropdownObj.AddComponent<Image>();
+            dropdownImage.color = new Color(0.2f, 0.2f, 0.2f);
+            
+            // Create dropdown label
+            GameObject dropdownLabelObj = new GameObject("DropdownLabel");
+            dropdownLabelObj.transform.SetParent(dropdownObj.transform, false);
+            RectTransform dropdownLabelRect = dropdownLabelObj.AddComponent<RectTransform>();
+            dropdownLabelRect.anchorMin = Vector2.zero;
+            dropdownLabelRect.anchorMax = Vector2.one;
+            dropdownLabelRect.offsetMin = new Vector2(10, 5);
+            dropdownLabelRect.offsetMax = new Vector2(-10, -5);
+            
+            TextMeshProUGUI dropdownLabelText = dropdownLabelObj.AddComponent<TextMeshProUGUI>();
+            dropdownLabelText.alignment = TextAlignmentOptions.Left;
+            dropdownLabelText.fontSize = 14;
+            dropdownLabelText.color = Color.white;
+            
+            // Create arrow
+            GameObject arrowObj = new GameObject("Arrow");
+            arrowObj.transform.SetParent(dropdownObj.transform, false);
+            RectTransform arrowRect = arrowObj.AddComponent<RectTransform>();
+            arrowRect.anchorMin = new Vector2(1, 0.5f);
+            arrowRect.anchorMax = new Vector2(1, 0.5f);
+            arrowRect.sizeDelta = new Vector2(20, 20);
+            arrowRect.anchoredPosition = new Vector2(-10, 0);
+            
+            Image arrowImage = arrowObj.AddComponent<Image>();
+            arrowImage.color = Color.white;
+            
+            // Create template
+            GameObject templateObj = new GameObject("Template");
+            templateObj.transform.SetParent(dropdownObj.transform, false);
+            RectTransform templateRect = templateObj.AddComponent<RectTransform>();
+            templateRect.anchorMin = new Vector2(0, 0);
+            templateRect.anchorMax = new Vector2(1, 0);
+            templateRect.pivot = new Vector2(0.5f, 1);
+            templateRect.anchoredPosition = new Vector2(0, 0);
+            templateRect.sizeDelta = new Vector2(0, 150);
+            
+            Image templateImage = templateObj.AddComponent<Image>();
+            templateImage.color = new Color(0.2f, 0.2f, 0.2f);
+            
+            // Create viewport
+            GameObject viewportObj = new GameObject("Viewport");
+            viewportObj.transform.SetParent(templateObj.transform, false);
+            RectTransform viewportRect = viewportObj.AddComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = new Vector2(1, 1);
+            viewportRect.offsetMin = Vector2.zero;
+            viewportRect.offsetMax = Vector2.zero;
+            
+            Image viewportImage = viewportObj.AddComponent<Image>();
+            viewportImage.color = new Color(0.2f, 0.2f, 0.2f);
+            
+            // Create content
+            GameObject contentObj = new GameObject("Content");
+            contentObj.transform.SetParent(viewportObj.transform, false);
+            RectTransform contentRect = contentObj.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0, 1);
+            contentRect.anchorMax = new Vector2(1, 1);
+            contentRect.pivot = new Vector2(0.5f, 1);
+            contentRect.anchoredPosition = Vector2.zero;
+            
+            // Create item template
+            GameObject itemObj = new GameObject("Item");
+            itemObj.transform.SetParent(contentObj.transform, false);
+            RectTransform itemRect = itemObj.AddComponent<RectTransform>();
+            itemRect.anchorMin = new Vector2(0, 1);
+            itemRect.anchorMax = new Vector2(1, 1);
+            itemRect.pivot = new Vector2(0.5f, 1);
+            itemRect.sizeDelta = new Vector2(0, 30);
+            
+            Toggle itemToggle = itemObj.AddComponent<Toggle>();
+            itemToggle.targetGraphic = itemObj.AddComponent<Image>();
+            
+            // Create item label
+            GameObject itemLabelObj = new GameObject("ItemLabel");
+            itemLabelObj.transform.SetParent(itemObj.transform, false);
+            RectTransform itemLabelRect = itemLabelObj.AddComponent<RectTransform>();
+            itemLabelRect.anchorMin = Vector2.zero;
+            itemLabelRect.anchorMax = Vector2.one;
+            itemLabelRect.offsetMin = new Vector2(10, 5);
+            itemLabelRect.offsetMax = new Vector2(-10, -5);
+            
+            TextMeshProUGUI itemLabel = itemLabelObj.AddComponent<TextMeshProUGUI>();
+            itemLabel.alignment = TextAlignmentOptions.Left;
+            itemLabel.fontSize = 14;
+            itemLabel.color = Color.white;
+            
+            // Setup dropdown
             impactTypeDropdown = dropdownObj.AddComponent<TMP_Dropdown>();
-            impactTypeDropdown.template = CreateDropdownTemplate(dropdownObj);
+            impactTypeDropdown.targetGraphic = dropdownImage;
+            impactTypeDropdown.template = templateRect;
+            impactTypeDropdown.captionText = dropdownLabelText;
+            impactTypeDropdown.itemText = itemLabel;
+            impactTypeDropdown.itemImage = itemToggle.targetGraphic as Image;
+            impactTypeDropdown.options = new List<TMP_Dropdown.OptionData>();
+            impactTypeDropdown.value = 0;
+            
+            // Hide template
+            templateObj.SetActive(false);
             
             // Create budget input
             GameObject budgetObj = new GameObject("BudgetInput");
@@ -630,6 +730,17 @@ public class CitySimulator : MonoBehaviour
                 if (simulationResultsText != null)
                 {
                     simulationResultsText.text = "Please enter a valid number";
+                    simulationResultsText.color = Color.red;
+                }
+                return;
+            }
+            
+            if (budgetAmount < 1 || budgetAmount > 1000000)
+            {
+                WriteDebugLog("Budget amount out of range");
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Budget must be between 1 and 1,000,000";
                     simulationResultsText.color = Color.red;
                 }
                 return;
@@ -1599,14 +1710,7 @@ public class CitySimulator : MonoBehaviour
         if (selectedZoneText != null && selectedZone != null)
         {
             string text = "Selected: " + selectedZone.name + "\n";
-            text += "Type: " + selectedZone.type + "\n";
-            text += "Cost: $" + selectedZone.cost.ToString("N0") + " million\n\n";
-
-            text += "Impacts:\n";
-            foreach (var impact in selectedZone.impacts)
-            {
-                text += impact.Key + ": " + impact.Value.ToString("N1") + "\n";
-            }
+            text += "Budget: $" + selectedZone.cost.ToString("N0") + " million";
 
             selectedZoneText.text = text;
             infoPanel.SetActive(true);
@@ -1623,9 +1727,21 @@ public class CitySimulator : MonoBehaviour
                     }
                     else
                     {
+                        // Show zone-specific impacts
                         impactTypeDropdown.ClearOptions();
-                        List<string> impactTypes = new List<string>(selectedZone.impacts.Keys);
-                        impactTypeDropdown.AddOptions(impactTypes);
+                        List<TMP_Dropdown.OptionData> options = new List<TMP_Dropdown.OptionData>();
+                        foreach (string impact in selectedZone.impacts.Keys)
+                        {
+                            options.Add(new TMP_Dropdown.OptionData(impact));
+                        }
+                        impactTypeDropdown.AddOptions(options);
+                        
+                        // Set default selection to first impact
+                        if (options.Count > 0)
+                        {
+                            impactTypeDropdown.value = 0;
+                            impactTypeDropdown.RefreshShownValue();
+                        }
                     }
                 }
                 
@@ -1714,7 +1830,19 @@ public class CitySimulator : MonoBehaviour
 
         // Update dropdown
         impactTypeDropdown.ClearOptions();
-        impactTypeDropdown.AddOptions(topImpacts);
+        List<TMP_Dropdown.OptionData> options = new List<TMP_Dropdown.OptionData>();
+        foreach (string impact in topImpacts)
+        {
+            options.Add(new TMP_Dropdown.OptionData(impact));
+        }
+        impactTypeDropdown.AddOptions(options);
+        
+        // Set default selection to first impact
+        if (options.Count > 0)
+        {
+            impactTypeDropdown.value = 0;
+            impactTypeDropdown.RefreshShownValue();
+        }
     }
 
     // Update instructions display
@@ -1865,20 +1993,42 @@ public class CitySimulator : MonoBehaviour
 
     private void OnImpactViewToggleChanged(bool isCityWide)
     {
-        if (selectedZone == null) return;
+        WriteDebugLog($"Impact view toggle changed to: {(isCityWide ? "City-wide" : "Zone-specific")}");
+        
+        if (selectedZone == null)
+        {
+            WriteDebugLog("No zone selected, cannot update impacts");
+            return;
+        }
+        
+        if (impactTypeDropdown == null)
+        {
+            WriteDebugLog("Impact type dropdown is null");
+            return;
+        }
         
         if (isCityWide)
         {
+            WriteDebugLog("Updating to city-wide impacts");
             UpdateImpactTypeDropdown();
         }
         else
         {
+            WriteDebugLog("Updating to zone-specific impacts");
             // Show zone-specific impacts
-            if (impactTypeDropdown != null)
+            impactTypeDropdown.ClearOptions();
+            List<TMP_Dropdown.OptionData> options = new List<TMP_Dropdown.OptionData>();
+            foreach (string impact in selectedZone.impacts.Keys)
             {
-                impactTypeDropdown.ClearOptions();
-                List<string> impactTypes = new List<string>(selectedZone.impacts.Keys);
-                impactTypeDropdown.AddOptions(impactTypes);
+                options.Add(new TMP_Dropdown.OptionData(impact));
+            }
+            impactTypeDropdown.AddOptions(options);
+            
+            // Set default selection to first impact
+            if (options.Count > 0)
+            {
+                impactTypeDropdown.value = 0;
+                impactTypeDropdown.RefreshShownValue();
             }
         }
     }
