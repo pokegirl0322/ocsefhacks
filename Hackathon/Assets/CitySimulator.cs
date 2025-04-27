@@ -9,6 +9,7 @@ using TMPro;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
+using System.Linq;
 
 public class CitySimulator : MonoBehaviour
 {
@@ -31,6 +32,20 @@ public class CitySimulator : MonoBehaviour
     public TextMeshProUGUI instructionsText;
     public GameObject infoPanel;
     public ScrollRect mapScrollRect; // Reference to the ScrollRect component
+    
+    // New UI elements for impact simulation
+    public GameObject impactSimulationPanel;
+    public TMP_Dropdown impactTypeDropdown;
+    public TMP_InputField budgetInputField;
+    public TMP_InputField yearsInputField;
+    public TextMeshProUGUI simulationResultsText;
+    public Button simulateButton;
+    public Toggle impactViewToggle; // New toggle for switching views
+    
+    // Double click detection
+    private float doubleClickTime = 0.3f;
+    private float lastClickTime;
+    private CityZone lastClickedZone;
     
     // Object pooling settings
     public int poolSize = 30;
@@ -104,6 +119,10 @@ public class CitySimulator : MonoBehaviour
             WriteDebugLog("Setting up scroll rect");
             SetupScrollRect();
             
+            // Setup impact simulation panel
+            WriteDebugLog("Setting up impact simulation panel");
+            SetupImpactSimulationPanel();
+            
             // Load data
             WriteDebugLog("Loading game data");
             LoadGameData();
@@ -157,6 +176,13 @@ public class CitySimulator : MonoBehaviour
         if (instructionsText == null) WriteDebugLog("WARNING: Instructions Text component not assigned");
         if (infoPanel == null) WriteDebugLog("WARNING: Info Panel not assigned");
         if (mapScrollRect == null) WriteDebugLog("WARNING: Map Scroll Rect not assigned");
+        if (impactSimulationPanel == null) WriteDebugLog("WARNING: Impact Simulation Panel not assigned");
+        if (impactTypeDropdown == null) WriteDebugLog("WARNING: Impact Type Dropdown not assigned");
+        if (budgetInputField == null) WriteDebugLog("WARNING: Budget Input Field not assigned");
+        if (yearsInputField == null) WriteDebugLog("WARNING: Years Input Field not assigned");
+        if (simulationResultsText == null) WriteDebugLog("WARNING: Simulation Results Text not assigned");
+        if (simulateButton == null) WriteDebugLog("WARNING: Simulate Button not assigned");
+        if (impactViewToggle == null) WriteDebugLog("WARNING: Impact View Toggle not assigned");
     }
 
     private void SetupScrollRect()
@@ -240,6 +266,277 @@ public class CitySimulator : MonoBehaviour
         if (mapScrollRect == null)
         {
             WriteDebugLog("WARNING: No ScrollRect available. Scrolling functionality will be disabled.");
+        }
+    }
+
+    private void SetupImpactSimulationPanel()
+    {
+        if (impactSimulationPanel == null)
+        {
+            WriteDebugLog("Creating impact simulation panel");
+            
+            // Create panel
+            impactSimulationPanel = new GameObject("ImpactSimulationPanel");
+            impactSimulationPanel.transform.SetParent(transform, false);
+            
+            // Add RectTransform
+            RectTransform panelRect = impactSimulationPanel.AddComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.7f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.95f, 0.9f);
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            
+            // Add Image component
+            Image panelImage = impactSimulationPanel.AddComponent<Image>();
+            panelImage.color = new Color(0.2f, 0.2f, 0.2f, 0.9f);
+            
+            // Create title
+            GameObject titleObj = new GameObject("Title");
+            titleObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform titleRect = titleObj.AddComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0, 0.9f);
+            titleRect.anchorMax = new Vector2(1, 1);
+            titleRect.offsetMin = new Vector2(10, 0);
+            titleRect.offsetMax = new Vector2(-10, -10);
+            
+            TextMeshProUGUI titleText = titleObj.AddComponent<TextMeshProUGUI>();
+            titleText.text = "Impact Simulation";
+            titleText.alignment = TextAlignmentOptions.Center;
+            titleText.fontSize = 24;
+            titleText.color = Color.white;
+            
+            // Create impact view toggle
+            GameObject toggleObj = new GameObject("ImpactViewToggle");
+            toggleObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform toggleRect = toggleObj.AddComponent<RectTransform>();
+            toggleRect.anchorMin = new Vector2(0.1f, 0.8f);
+            toggleRect.anchorMax = new Vector2(0.9f, 0.85f);
+            toggleRect.offsetMin = Vector2.zero;
+            toggleRect.offsetMax = Vector2.zero;
+            
+            impactViewToggle = toggleObj.AddComponent<Toggle>();
+            Image toggleImage = toggleObj.AddComponent<Image>();
+            toggleImage.color = new Color(0.3f, 0.3f, 0.3f);
+            
+            // Create toggle label
+            GameObject labelObj = new GameObject("Label");
+            labelObj.transform.SetParent(toggleObj.transform, false);
+            RectTransform labelRect = labelObj.AddComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(30, 0);
+            labelRect.offsetMax = Vector2.zero;
+            
+            TextMeshProUGUI labelText = labelObj.AddComponent<TextMeshProUGUI>();
+            labelText.text = "Show City-Wide Top Impacts";
+            labelText.alignment = TextAlignmentOptions.Left;
+            labelText.fontSize = 14;
+            labelText.color = Color.white;
+            
+            // Create toggle checkmark
+            GameObject checkmarkObj = new GameObject("Checkmark");
+            checkmarkObj.transform.SetParent(toggleObj.transform, false);
+            RectTransform checkmarkRect = checkmarkObj.AddComponent<RectTransform>();
+            checkmarkRect.anchorMin = new Vector2(0, 0);
+            checkmarkRect.anchorMax = new Vector2(0, 1);
+            checkmarkRect.sizeDelta = new Vector2(20, 0);
+            checkmarkRect.offsetMin = new Vector2(5, 0);
+            checkmarkRect.offsetMax = new Vector2(25, 0);
+            
+            Image checkmarkImage = checkmarkObj.AddComponent<Image>();
+            checkmarkImage.color = new Color(0.2f, 0.6f, 1f);
+            
+            // Setup toggle
+            impactViewToggle.targetGraphic = toggleImage;
+            impactViewToggle.graphic = checkmarkImage;
+            impactViewToggle.isOn = false;
+            impactViewToggle.onValueChanged.AddListener(OnImpactViewToggleChanged);
+            
+            // Create dropdown
+            GameObject dropdownObj = new GameObject("ImpactTypeDropdown");
+            dropdownObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform dropdownRect = dropdownObj.AddComponent<RectTransform>();
+            dropdownRect.anchorMin = new Vector2(0.1f, 0.7f);
+            dropdownRect.anchorMax = new Vector2(0.9f, 0.75f);
+            dropdownRect.offsetMin = Vector2.zero;
+            dropdownRect.offsetMax = Vector2.zero;
+            
+            impactTypeDropdown = dropdownObj.AddComponent<TMP_Dropdown>();
+            impactTypeDropdown.template = CreateDropdownTemplate(dropdownObj);
+            
+            // Create budget input
+            GameObject budgetObj = new GameObject("BudgetInput");
+            budgetObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform budgetRect = budgetObj.AddComponent<RectTransform>();
+            budgetRect.anchorMin = new Vector2(0.1f, 0.5f);
+            budgetRect.anchorMax = new Vector2(0.9f, 0.6f);
+            budgetRect.offsetMin = Vector2.zero;
+            budgetRect.offsetMax = Vector2.zero;
+            
+            budgetInputField = budgetObj.AddComponent<TMP_InputField>();
+            budgetInputField.textComponent = CreateInputText(budgetObj);
+            budgetInputField.placeholder = CreateInputPlaceholder(budgetObj, "Enter budget amount");
+            
+            // Create years input
+            GameObject yearsObj = new GameObject("YearsInput");
+            yearsObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform yearsRect = yearsObj.AddComponent<RectTransform>();
+            yearsRect.anchorMin = new Vector2(0.1f, 0.3f);
+            yearsRect.anchorMax = new Vector2(0.9f, 0.4f);
+            yearsRect.offsetMin = Vector2.zero;
+            yearsRect.offsetMax = Vector2.zero;
+            
+            yearsInputField = yearsObj.AddComponent<TMP_InputField>();
+            yearsInputField.textComponent = CreateInputText(yearsObj);
+            yearsInputField.placeholder = CreateInputPlaceholder(yearsObj, "Enter number of years");
+            
+            // Create simulate button
+            GameObject buttonObj = new GameObject("SimulateButton");
+            buttonObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform buttonRect = buttonObj.AddComponent<RectTransform>();
+            buttonRect.anchorMin = new Vector2(0.3f, 0.15f);
+            buttonRect.anchorMax = new Vector2(0.7f, 0.25f);
+            buttonRect.offsetMin = Vector2.zero;
+            buttonRect.offsetMax = Vector2.zero;
+            
+            simulateButton = buttonObj.AddComponent<Button>();
+            Image buttonImage = buttonObj.AddComponent<Image>();
+            buttonImage.color = new Color(0.2f, 0.6f, 1f);
+            
+            TextMeshProUGUI buttonText = CreateInputText(buttonObj);
+            buttonText.text = "Simulate";
+            buttonText.alignment = TextAlignmentOptions.Center;
+            
+            // Create results text
+            GameObject resultsObj = new GameObject("ResultsText");
+            resultsObj.transform.SetParent(impactSimulationPanel.transform, false);
+            RectTransform resultsRect = resultsObj.AddComponent<RectTransform>();
+            resultsRect.anchorMin = new Vector2(0.1f, 0.05f);
+            resultsRect.anchorMax = new Vector2(0.9f, 0.15f);
+            resultsRect.offsetMin = Vector2.zero;
+            resultsRect.offsetMax = Vector2.zero;
+            
+            simulationResultsText = resultsObj.AddComponent<TextMeshProUGUI>();
+            simulationResultsText.alignment = TextAlignmentOptions.Center;
+            simulationResultsText.fontSize = 14;
+            simulationResultsText.color = Color.white;
+            
+            // Add button listener
+            simulateButton.onClick.AddListener(OnSimulateButtonClick);
+            
+            // Initially hide the panel
+            impactSimulationPanel.SetActive(false);
+        }
+    }
+
+    private RectTransform CreateDropdownTemplate(GameObject parent)
+    {
+        GameObject template = new GameObject("Template");
+        template.transform.SetParent(parent.transform, false);
+        RectTransform templateRect = template.AddComponent<RectTransform>();
+        templateRect.anchorMin = new Vector2(0, 0);
+        templateRect.anchorMax = new Vector2(1, 1);
+        templateRect.offsetMin = Vector2.zero;
+        templateRect.offsetMax = Vector2.zero;
+        
+        Image templateImage = template.AddComponent<Image>();
+        templateImage.color = new Color(0.2f, 0.2f, 0.2f);
+        
+        return templateRect;
+    }
+
+    private TextMeshProUGUI CreateInputText(GameObject parent)
+    {
+        GameObject textObj = new GameObject("Text");
+        textObj.transform.SetParent(parent.transform, false);
+        RectTransform textRect = textObj.AddComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = new Vector2(10, 5);
+        textRect.offsetMax = new Vector2(-10, -5);
+        
+        TextMeshProUGUI text = textObj.AddComponent<TextMeshProUGUI>();
+        text.alignment = TextAlignmentOptions.Left;
+        text.fontSize = 14;
+        text.color = Color.white;
+        
+        return text;
+    }
+
+    private TextMeshProUGUI CreateInputPlaceholder(GameObject parent, string placeholderText)
+    {
+        GameObject placeholderObj = new GameObject("Placeholder");
+        placeholderObj.transform.SetParent(parent.transform, false);
+        RectTransform placeholderRect = placeholderObj.AddComponent<RectTransform>();
+        placeholderRect.anchorMin = Vector2.zero;
+        placeholderRect.anchorMax = Vector2.one;
+        placeholderRect.offsetMin = new Vector2(10, 5);
+        placeholderRect.offsetMax = new Vector2(-10, -5);
+        
+        TextMeshProUGUI placeholder = placeholderObj.AddComponent<TextMeshProUGUI>();
+        placeholder.text = placeholderText;
+        placeholder.alignment = TextAlignmentOptions.Left;
+        placeholder.fontSize = 14;
+        placeholder.color = new Color(0.7f, 0.7f, 0.7f);
+        
+        return placeholder;
+    }
+
+    private void OnSimulateButtonClick()
+    {
+        if (selectedZone == null) return;
+        
+        try
+        {
+            // Get selected impact type
+            string impactType = impactTypeDropdown.options[impactTypeDropdown.value].text;
+            
+            // Get budget amount
+            if (!float.TryParse(budgetInputField.text, out float budgetAmount))
+            {
+                simulationResultsText.text = "Please enter a valid budget amount";
+                return;
+            }
+            
+            // Get number of years
+            if (!int.TryParse(yearsInputField.text, out int years))
+            {
+                simulationResultsText.text = "Please enter a valid number of years";
+                return;
+            }
+            
+            // Calculate impact over time
+            float baseImpact = selectedZone.impacts.ContainsKey(impactType) ? 
+                selectedZone.impacts[impactType] : 0f;
+            
+            float yearlyImpact = baseImpact * (budgetAmount / selectedZone.cost);
+            float totalImpact = yearlyImpact * years;
+            
+            // Format results
+            string results = $"Simulation Results:\n\n";
+            results += $"Base Impact: {baseImpact:F1}\n";
+            results += $"Yearly Impact: {yearlyImpact:F1}\n";
+            results += $"Total Impact over {years} years: {totalImpact:F1}\n\n";
+            
+            if (totalImpact > 0)
+            {
+                results += "This investment will have a positive effect on " + impactType;
+            }
+            else if (totalImpact < 0)
+            {
+                results += "This investment will have a negative effect on " + impactType;
+            }
+            else
+            {
+                results += "This investment will have no significant effect on " + impactType;
+            }
+            
+            simulationResultsText.text = results;
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in OnSimulateButtonClick: {e.Message}");
+            simulationResultsText.text = "Error calculating simulation results";
         }
     }
 
@@ -979,6 +1276,13 @@ public class CitySimulator : MonoBehaviour
     {
         if (zone == null) return;
         
+        float currentTime = Time.time;
+        bool isDoubleClick = (currentTime - lastClickTime) < doubleClickTime && zone == lastClickedZone;
+        
+        // Update click tracking
+        lastClickTime = currentTime;
+        lastClickedZone = zone;
+        
         selectedZone = zone;
         isDragging = true;
 
@@ -1013,6 +1317,12 @@ public class CitySimulator : MonoBehaviour
                 {
                     image.color = new Color(image.color.r, image.color.g, image.color.b, 0.7f);
                 }
+            }
+            
+            // Show/hide impact simulation panel based on double click
+            if (impactSimulationPanel != null)
+            {
+                impactSimulationPanel.SetActive(isDoubleClick);
             }
         }
         catch (Exception e)
@@ -1108,12 +1418,105 @@ public class CitySimulator : MonoBehaviour
 
             selectedZoneText.text = text;
             infoPanel.SetActive(true);
+            
+            // Update impact simulation panel if it's visible
+            if (impactSimulationPanel != null && impactSimulationPanel.activeSelf)
+            {
+                // Update impact type dropdown based on toggle state
+                if (impactTypeDropdown != null)
+                {
+                    if (impactViewToggle != null && impactViewToggle.isOn)
+                    {
+                        UpdateImpactTypeDropdown();
+                    }
+                    else
+                    {
+                        impactTypeDropdown.ClearOptions();
+                        List<string> impactTypes = new List<string>(selectedZone.impacts.Keys);
+                        impactTypeDropdown.AddOptions(impactTypes);
+                    }
+                }
+                
+                // Reset inputs
+                if (budgetInputField != null) budgetInputField.text = "";
+                if (yearsInputField != null) yearsInputField.text = "5";
+                if (simulationResultsText != null) simulationResultsText.text = "";
+            }
         }
         else if (selectedZoneText != null)
         {
             selectedZoneText.text = "No zone selected";
             infoPanel.SetActive(false);
+            
+            // Hide impact simulation panel
+            if (impactSimulationPanel != null)
+            {
+                impactSimulationPanel.SetActive(false);
+            }
         }
+    }
+
+    private void UpdateImpactTypeDropdown()
+    {
+        if (impactTypeDropdown == null) return;
+
+        // Get the top 3 impacts from the 2024 map data
+        Dictionary<string, float> impactScores = new Dictionary<string, float>();
+        
+        // Read the 2024 map data
+        TextAsset csvAsset = Resources.Load<TextAsset>(Path.GetFileNameWithoutExtension(mapData2024Path));
+        if (csvAsset != null)
+        {
+            string[] lines = csvAsset.text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            // Skip header line
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string[] tokens = lines[i].Split(',');
+                if (tokens.Length >= 10) // Ensure we have enough tokens for impacts
+                {
+                    // Add Impact1
+                    if (!string.IsNullOrEmpty(tokens[5]) && !string.IsNullOrEmpty(tokens[6]))
+                    {
+                        string impact = tokens[5].Trim();
+                        float value = float.Parse(tokens[6]);
+                        if (!impactScores.ContainsKey(impact))
+                            impactScores[impact] = 0;
+                        impactScores[impact] += value;
+                    }
+                    
+                    // Add Impact2
+                    if (!string.IsNullOrEmpty(tokens[7]) && !string.IsNullOrEmpty(tokens[8]))
+                    {
+                        string impact = tokens[7].Trim();
+                        float value = float.Parse(tokens[8]);
+                        if (!impactScores.ContainsKey(impact))
+                            impactScores[impact] = 0;
+                        impactScores[impact] += value;
+                    }
+                    
+                    // Add Impact3
+                    if (!string.IsNullOrEmpty(tokens[9]) && !string.IsNullOrEmpty(tokens[10]))
+                    {
+                        string impact = tokens[9].Trim();
+                        float value = float.Parse(tokens[10]);
+                        if (!impactScores.ContainsKey(impact))
+                            impactScores[impact] = 0;
+                        impactScores[impact] += value;
+                    }
+                }
+            }
+        }
+
+        // Sort impacts by score and get top 3
+        var topImpacts = impactScores.OrderByDescending(x => x.Value)
+                                   .Take(3)
+                                   .Select(x => x.Key)
+                                   .ToList();
+
+        // Update dropdown
+        impactTypeDropdown.ClearOptions();
+        impactTypeDropdown.AddOptions(topImpacts);
     }
 
     // Update instructions display
@@ -1123,6 +1526,7 @@ public class CitySimulator : MonoBehaviour
         {
             instructionsText.text = "Instructions:\n" +
                 "- Click to select a zone\n" +
+                "- Double-click to open impact simulation\n" +
                 "- Drag to move zones\n" +
                 "- See budget impact in panel\n" +
                 "- ESC to save and quit";
@@ -1258,6 +1662,26 @@ public class CitySimulator : MonoBehaviour
         catch (Exception e)
         {
             WriteDebugLog($"ERROR during cleanup: {e.Message}");
+        }
+    }
+
+    private void OnImpactViewToggleChanged(bool isCityWide)
+    {
+        if (selectedZone == null) return;
+        
+        if (isCityWide)
+        {
+            UpdateImpactTypeDropdown();
+        }
+        else
+        {
+            // Show zone-specific impacts
+            if (impactTypeDropdown != null)
+            {
+                impactTypeDropdown.ClearOptions();
+                List<string> impactTypes = new List<string>(selectedZone.impacts.Keys);
+                impactTypeDropdown.AddOptions(impactTypes);
+            }
         }
     }
 }
