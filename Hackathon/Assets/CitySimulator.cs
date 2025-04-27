@@ -375,11 +375,29 @@ public class CitySimulator : MonoBehaviour
             
             // Add required components
             RectTransform rectTransform = zonePrefab.AddComponent<RectTransform>();
-            rectTransform.sizeDelta = new Vector2(50, 50);
+            rectTransform.sizeDelta = new Vector2(100, 100); // Larger size for more detail
             
-            // Add Image component
-            Image image = zonePrefab.AddComponent<Image>();
-            image.color = new Color(0.8f, 0.8f, 0.8f, 0.7f);
+            // Add Image component for the base
+            Image baseImage = zonePrefab.AddComponent<Image>();
+            baseImage.color = new Color(0.2f, 0.2f, 0.2f, 0.8f); // Dark gray base
+            
+            // Create buildings container
+            GameObject buildingsContainer = new GameObject("Buildings");
+            buildingsContainer.transform.SetParent(zonePrefab.transform, false);
+            RectTransform buildingsRect = buildingsContainer.AddComponent<RectTransform>();
+            buildingsRect.anchorMin = Vector2.zero;
+            buildingsRect.anchorMax = Vector2.one;
+            buildingsRect.offsetMin = new Vector2(5, 5); // Padding
+            buildingsRect.offsetMax = new Vector2(-5, -5);
+            
+            // Add buildings
+            AddBuilding(buildingsContainer, new Vector2(0.2f, 0.2f), new Vector2(0.3f, 0.4f), new Color(0.4f, 0.4f, 0.4f)); // Tall building
+            AddBuilding(buildingsContainer, new Vector2(0.6f, 0.3f), new Vector2(0.25f, 0.3f), new Color(0.5f, 0.5f, 0.5f)); // Medium building
+            AddBuilding(buildingsContainer, new Vector2(0.3f, 0.7f), new Vector2(0.2f, 0.2f), new Color(0.6f, 0.6f, 0.6f)); // Small building
+            
+            // Add roads
+            AddRoad(buildingsContainer, new Vector2(0.5f, 0.1f), new Vector2(0.8f, 0.05f), new Color(0.3f, 0.3f, 0.3f)); // Horizontal road
+            AddRoad(buildingsContainer, new Vector2(0.1f, 0.5f), new Vector2(0.05f, 0.8f), new Color(0.3f, 0.3f, 0.3f)); // Vertical road
             
             // Add text for the name
             GameObject textObj = new GameObject("NameText");
@@ -394,7 +412,8 @@ public class CitySimulator : MonoBehaviour
             TextMeshProUGUI nameText = textObj.AddComponent<TextMeshProUGUI>();
             nameText.alignment = TextAlignmentOptions.Center;
             nameText.fontSize = 12;
-            nameText.color = Color.black;
+            nameText.color = Color.white;
+            nameText.fontStyle = FontStyles.Bold;
             
             // Add EventTrigger component
             zonePrefab.AddComponent<EventTrigger>();
@@ -407,8 +426,102 @@ public class CitySimulator : MonoBehaviour
         catch (Exception e)
         {
             WriteDebugLog($"ERROR in CreateDefaultZonePrefab: {e.Message}\n{e.StackTrace}");
-            throw; // Re-throw to be caught by InitializeObjectPool
+            throw;
         }
+    }
+    
+    private void AddBuilding(GameObject parent, Vector2 position, Vector2 size, Color color)
+    {
+        GameObject building = new GameObject("Building");
+        building.transform.SetParent(parent.transform, false);
+        
+        RectTransform rectTransform = building.AddComponent<RectTransform>();
+        rectTransform.anchorMin = position;
+        rectTransform.anchorMax = position + size;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+        
+        Image image = building.AddComponent<Image>();
+        image.color = color;
+        
+        // Add windows
+        int windowRows = Mathf.FloorToInt(size.y * 10);
+        int windowCols = Mathf.FloorToInt(size.x * 10);
+        
+        for (int row = 0; row < windowRows; row++)
+        {
+            for (int col = 0; col < windowCols; col++)
+            {
+                if (UnityEngine.Random.value > 0.3f) // 70% chance of window
+                {
+                    AddWindow(building, new Vector2(
+                        (col + 0.5f) / windowCols,
+                        (row + 0.5f) / windowRows
+                    ));
+                }
+            }
+        }
+    }
+    
+    private void AddWindow(GameObject building, Vector2 position)
+    {
+        GameObject window = new GameObject("Window");
+        window.transform.SetParent(building.transform, false);
+        
+        RectTransform rectTransform = window.AddComponent<RectTransform>();
+        rectTransform.anchorMin = position - new Vector2(0.02f, 0.02f);
+        rectTransform.anchorMax = position + new Vector2(0.02f, 0.02f);
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+        
+        Image image = window.AddComponent<Image>();
+        image.color = new Color(0.8f, 0.8f, 0.9f, 0.8f); // Light blue window
+    }
+    
+    private void AddRoad(GameObject parent, Vector2 position, Vector2 size, Color color)
+    {
+        GameObject road = new GameObject("Road");
+        road.transform.SetParent(parent.transform, false);
+        
+        RectTransform rectTransform = road.AddComponent<RectTransform>();
+        rectTransform.anchorMin = position;
+        rectTransform.anchorMax = position + size;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+        
+        Image image = road.AddComponent<Image>();
+        image.color = color;
+        
+        // Add road markings
+        if (size.x > size.y) // Horizontal road
+        {
+            for (float x = 0.1f; x < 0.9f; x += 0.2f)
+            {
+                AddRoadMarking(road, new Vector2(x, 0.5f), new Vector2(0.1f, 0.02f));
+            }
+        }
+        else // Vertical road
+        {
+            for (float y = 0.1f; y < 0.9f; y += 0.2f)
+            {
+                AddRoadMarking(road, new Vector2(0.5f, y), new Vector2(0.02f, 0.1f));
+            }
+        }
+    }
+    
+    private void AddRoadMarking(GameObject road, Vector2 position, Vector2 size)
+    {
+        GameObject marking = new GameObject("RoadMarking");
+        marking.transform.SetParent(road.transform, false);
+        
+        RectTransform rectTransform = marking.AddComponent<RectTransform>();
+        rectTransform.anchorMin = position - size/2;
+        rectTransform.anchorMax = position + size/2;
+        rectTransform.offsetMin = Vector2.zero;
+        rectTransform.offsetMax = Vector2.zero;
+        
+        Image image = marking.AddComponent<Image>();
+        image.color = Color.yellow;
     }
 
     // Load city map data from CSV
