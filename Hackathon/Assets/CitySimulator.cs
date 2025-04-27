@@ -31,16 +31,17 @@ public class CitySimulator : MonoBehaviour
     public TextMeshProUGUI selectedZoneText;
     public TextMeshProUGUI instructionsText;
     public GameObject infoPanel;
-    public ScrollRect mapScrollRect; // Reference to the ScrollRect component
+    public ScrollRect mapScrollRect;
     
-    // New UI elements for impact simulation
+    // Impact simulation panel components
+    [Header("Impact Simulation Panel")]
     public GameObject impactSimulationPanel;
     public TMP_Dropdown impactTypeDropdown;
     public TMP_InputField budgetInputField;
     public TMP_InputField yearsInputField;
     public TextMeshProUGUI simulationResultsText;
     public Button simulateButton;
-    public Toggle impactViewToggle; // New toggle for switching views
+    public Toggle impactViewToggle;
     
     // Double click detection
     private float doubleClickTime = 0.3f;
@@ -119,9 +120,12 @@ public class CitySimulator : MonoBehaviour
             WriteDebugLog("Setting up scroll rect");
             SetupScrollRect();
             
-            // Setup impact simulation panel
-            WriteDebugLog("Setting up impact simulation panel");
-            SetupImpactSimulationPanel();
+            // Setup button listener
+            if (simulateButton != null)
+            {
+                simulateButton.onClick.AddListener(OnSimulateButtonClick);
+                WriteDebugLog("Simulate button listener added");
+            }
             
             // Load data
             WriteDebugLog("Loading game data");
@@ -373,9 +377,47 @@ public class CitySimulator : MonoBehaviour
             budgetRect.offsetMin = Vector2.zero;
             budgetRect.offsetMax = Vector2.zero;
             
+            // Add background image
+            Image budgetImage = budgetObj.AddComponent<Image>();
+            budgetImage.color = new Color(0.2f, 0.2f, 0.2f);
+            
+            // Create text component
+            GameObject budgetTextObj = new GameObject("Text");
+            budgetTextObj.transform.SetParent(budgetObj.transform, false);
+            RectTransform budgetTextRect = budgetTextObj.AddComponent<RectTransform>();
+            budgetTextRect.anchorMin = Vector2.zero;
+            budgetTextRect.anchorMax = Vector2.one;
+            budgetTextRect.offsetMin = new Vector2(10, 5);
+            budgetTextRect.offsetMax = new Vector2(-10, -5);
+            
+            TextMeshProUGUI budgetText = budgetTextObj.AddComponent<TextMeshProUGUI>();
+            budgetText.alignment = TextAlignmentOptions.Left;
+            budgetText.fontSize = 14;
+            budgetText.color = Color.white;
+            
+            // Create placeholder
+            GameObject budgetPlaceholderObj = new GameObject("Placeholder");
+            budgetPlaceholderObj.transform.SetParent(budgetObj.transform, false);
+            RectTransform budgetPlaceholderRect = budgetPlaceholderObj.AddComponent<RectTransform>();
+            budgetPlaceholderRect.anchorMin = Vector2.zero;
+            budgetPlaceholderRect.anchorMax = Vector2.one;
+            budgetPlaceholderRect.offsetMin = new Vector2(10, 5);
+            budgetPlaceholderRect.offsetMax = new Vector2(-10, -5);
+            
+            TextMeshProUGUI budgetPlaceholder = budgetPlaceholderObj.AddComponent<TextMeshProUGUI>();
+            budgetPlaceholder.text = "Enter budget amount";
+            budgetPlaceholder.alignment = TextAlignmentOptions.Left;
+            budgetPlaceholder.fontSize = 14;
+            budgetPlaceholder.color = new Color(0.7f, 0.7f, 0.7f);
+            
+            // Setup input field
             budgetInputField = budgetObj.AddComponent<TMP_InputField>();
-            budgetInputField.textComponent = CreateInputText(budgetObj);
-            budgetInputField.placeholder = CreateInputPlaceholder(budgetObj, "Enter budget amount");
+            budgetInputField.textComponent = budgetText;
+            budgetInputField.placeholder = budgetPlaceholder;
+            budgetInputField.contentType = TMP_InputField.ContentType.Standard;
+            budgetInputField.characterLimit = 10;
+            budgetInputField.richText = false;
+            budgetInputField.text = "";
             
             // Create years input
             GameObject yearsObj = new GameObject("YearsInput");
@@ -386,9 +428,47 @@ public class CitySimulator : MonoBehaviour
             yearsRect.offsetMin = Vector2.zero;
             yearsRect.offsetMax = Vector2.zero;
             
+            // Add background image
+            Image yearsImage = yearsObj.AddComponent<Image>();
+            yearsImage.color = new Color(0.2f, 0.2f, 0.2f);
+            
+            // Create text component
+            GameObject yearsTextObj = new GameObject("Text");
+            yearsTextObj.transform.SetParent(yearsObj.transform, false);
+            RectTransform yearsTextRect = yearsTextObj.AddComponent<RectTransform>();
+            yearsTextRect.anchorMin = Vector2.zero;
+            yearsTextRect.anchorMax = Vector2.one;
+            yearsTextRect.offsetMin = new Vector2(10, 5);
+            yearsTextRect.offsetMax = new Vector2(-10, -5);
+            
+            TextMeshProUGUI yearsText = yearsTextObj.AddComponent<TextMeshProUGUI>();
+            yearsText.alignment = TextAlignmentOptions.Left;
+            yearsText.fontSize = 14;
+            yearsText.color = Color.white;
+            
+            // Create placeholder
+            GameObject yearsPlaceholderObj = new GameObject("Placeholder");
+            yearsPlaceholderObj.transform.SetParent(yearsObj.transform, false);
+            RectTransform yearsPlaceholderRect = yearsPlaceholderObj.AddComponent<RectTransform>();
+            yearsPlaceholderRect.anchorMin = Vector2.zero;
+            yearsPlaceholderRect.anchorMax = Vector2.one;
+            yearsPlaceholderRect.offsetMin = new Vector2(10, 5);
+            yearsPlaceholderRect.offsetMax = new Vector2(-10, -5);
+            
+            TextMeshProUGUI yearsPlaceholder = yearsPlaceholderObj.AddComponent<TextMeshProUGUI>();
+            yearsPlaceholder.text = "Enter number of years";
+            yearsPlaceholder.alignment = TextAlignmentOptions.Left;
+            yearsPlaceholder.fontSize = 14;
+            yearsPlaceholder.color = new Color(0.7f, 0.7f, 0.7f);
+            
+            // Setup input field
             yearsInputField = yearsObj.AddComponent<TMP_InputField>();
-            yearsInputField.textComponent = CreateInputText(yearsObj);
-            yearsInputField.placeholder = CreateInputPlaceholder(yearsObj, "Enter number of years");
+            yearsInputField.textComponent = yearsText;
+            yearsInputField.placeholder = yearsPlaceholder;
+            yearsInputField.contentType = TMP_InputField.ContentType.Standard;
+            yearsInputField.characterLimit = 3;
+            yearsInputField.richText = false;
+            yearsInputField.text = "";
             
             // Create simulate button
             GameObject buttonObj = new GameObject("SimulateButton");
@@ -416,13 +496,30 @@ public class CitySimulator : MonoBehaviour
             resultsRect.offsetMin = Vector2.zero;
             resultsRect.offsetMax = Vector2.zero;
             
-            simulationResultsText = resultsObj.AddComponent<TextMeshProUGUI>();
+            // Add background image for results
+            Image resultsImage = resultsObj.AddComponent<Image>();
+            resultsImage.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
+            
+            // Create text component for results
+            GameObject resultsTextObj = new GameObject("Text");
+            resultsTextObj.transform.SetParent(resultsObj.transform, false);
+            RectTransform resultsTextRect = resultsTextObj.AddComponent<RectTransform>();
+            resultsTextRect.anchorMin = Vector2.zero;
+            resultsTextRect.anchorMax = Vector2.one;
+            resultsTextRect.offsetMin = new Vector2(10, 10);
+            resultsTextRect.offsetMax = new Vector2(-10, -10);
+            
+            simulationResultsText = resultsTextObj.AddComponent<TextMeshProUGUI>();
             simulationResultsText.alignment = TextAlignmentOptions.Center;
             simulationResultsText.fontSize = 14;
             simulationResultsText.color = Color.white;
+            simulationResultsText.text = "Enter values and click Simulate";
             
             // Add button listener
-            simulateButton.onClick.AddListener(OnSimulateButtonClick);
+            simulateButton.onClick.AddListener(() => {
+                WriteDebugLog("Simulate button clicked via listener");
+                OnSimulateButtonClick();
+            });
             
             // Initially hide the panel
             impactSimulationPanel.SetActive(false);
@@ -484,33 +581,104 @@ public class CitySimulator : MonoBehaviour
 
     private void OnSimulateButtonClick()
     {
-        if (selectedZone == null) return;
+        WriteDebugLog("Simulate button clicked");
+        
+        if (selectedZone == null)
+        {
+            WriteDebugLog("No zone selected");
+            return;
+        }
         
         try
         {
             // Get selected impact type
+            if (impactTypeDropdown == null || impactTypeDropdown.options.Count == 0)
+            {
+                WriteDebugLog("No impact type selected");
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Please select an impact type";
+                    simulationResultsText.color = Color.red;
+                }
+                return;
+            }
+            
             string impactType = impactTypeDropdown.options[impactTypeDropdown.value].text;
+            WriteDebugLog($"Selected impact type: {impactType}");
             
             // Get budget amount
-            if (!float.TryParse(budgetInputField.text, out float budgetAmount))
+            if (budgetInputField == null)
             {
-                simulationResultsText.text = "Please enter a valid budget amount";
+                WriteDebugLog("Budget input field is null");
                 return;
             }
             
-            // Get number of years
-            if (!int.TryParse(yearsInputField.text, out int years))
+            if (string.IsNullOrEmpty(budgetInputField.text))
             {
-                simulationResultsText.text = "Please enter a valid number of years";
+                WriteDebugLog("No budget amount entered");
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Please enter a budget amount";
+                    simulationResultsText.color = Color.red;
+                }
                 return;
             }
+            
+            if (!float.TryParse(budgetInputField.text, out float budgetAmount))
+            {
+                WriteDebugLog("Invalid budget amount");
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Please enter a valid number";
+                    simulationResultsText.color = Color.red;
+                }
+                return;
+            }
+            
+            WriteDebugLog($"Budget amount: {budgetAmount}");
+            
+            // Get number of years
+            if (yearsInputField == null)
+            {
+                WriteDebugLog("Years input field is null");
+                return;
+            }
+            
+            if (string.IsNullOrEmpty(yearsInputField.text))
+            {
+                WriteDebugLog("No years entered");
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Please enter number of years";
+                    simulationResultsText.color = Color.red;
+                }
+                return;
+            }
+            
+            if (!int.TryParse(yearsInputField.text, out int years))
+            {
+                WriteDebugLog("Invalid years value");
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Please enter a valid number";
+                    simulationResultsText.color = Color.red;
+                }
+                return;
+            }
+            
+            WriteDebugLog($"Number of years: {years}");
             
             // Calculate impact over time
             float baseImpact = selectedZone.impacts.ContainsKey(impactType) ? 
                 selectedZone.impacts[impactType] : 0f;
             
+            WriteDebugLog($"Base impact: {baseImpact}");
+            
             float yearlyImpact = baseImpact * (budgetAmount / selectedZone.cost);
             float totalImpact = yearlyImpact * years;
+            
+            WriteDebugLog($"Yearly impact: {yearlyImpact}");
+            WriteDebugLog($"Total impact: {totalImpact}");
             
             // Format results
             string results = $"Simulation Results:\n\n";
@@ -521,22 +689,46 @@ public class CitySimulator : MonoBehaviour
             if (totalImpact > 0)
             {
                 results += "This investment will have a positive effect on " + impactType;
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.color = Color.green;
+                }
             }
             else if (totalImpact < 0)
             {
                 results += "This investment will have a negative effect on " + impactType;
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.color = Color.red;
+                }
             }
             else
             {
                 results += "This investment will have no significant effect on " + impactType;
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.color = Color.yellow;
+                }
             }
             
-            simulationResultsText.text = results;
+            if (simulationResultsText != null)
+            {
+                WriteDebugLog($"Setting results text: {results}");
+                simulationResultsText.text = results;
+            }
+            else
+            {
+                WriteDebugLog("Simulation results text component is null");
+            }
         }
         catch (Exception e)
         {
-            WriteDebugLog($"ERROR in OnSimulateButtonClick: {e.Message}");
-            simulationResultsText.text = "Error calculating simulation results";
+            WriteDebugLog($"ERROR in OnSimulateButtonClick: {e.Message}\n{e.StackTrace}");
+            if (simulationResultsText != null)
+            {
+                simulationResultsText.text = "Error calculating simulation results";
+                simulationResultsText.color = Color.red;
+            }
         }
     }
 
@@ -1440,7 +1632,13 @@ public class CitySimulator : MonoBehaviour
                 // Reset inputs
                 if (budgetInputField != null) budgetInputField.text = "";
                 if (yearsInputField != null) yearsInputField.text = "5";
-                if (simulationResultsText != null) simulationResultsText.text = "";
+                
+                // Set initial simulation results text
+                if (simulationResultsText != null)
+                {
+                    simulationResultsText.text = "Enter values and click Simulate";
+                    simulationResultsText.color = Color.white;
+                }
             }
         }
         else if (selectedZoneText != null)
