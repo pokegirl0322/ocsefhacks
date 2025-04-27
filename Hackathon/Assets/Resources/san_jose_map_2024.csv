@@ -1,0 +1,31 @@
+Name,X,Y,Type,Cost,Impact1,Value1,Impact2,Value2,Impact3,Value3
+Downtown San Jose,0,0,Commercial,175,Economy,5.0,Tourism,4.5,Jobs,4.8
+Willow Glen,-50,40,Residential,120,Housing,4.2,Community,4.5,Property Value,4.3
+Japantown,30,-30,Cultural,95,Tourism,4.3,Economy,3.5,Culture,5.0
+North San Jose,70,80,Industrial,150,Jobs,4.8,Economy,4.5,Innovation,4.2
+Alum Rock,-80,-60,Residential,90,Housing,3.8,Community,3.5,Affordability,4.0
+Cambrian Park,-110,25,Residential,115,Housing,4.0,Schools,4.2,Parks,3.8
+Almaden Valley,-40,-120,Residential,140,Property Value,4.5,Schools,4.6,Environment,4.4
+Berryessa,60,-75,Residential,105,Housing,4.0,Recreation,3.8,Schools,4.1
+Evergreen,120,-40,Residential,110,Housing,4.1,Environment,4.0,Schools,3.9
+East San Jose,-20,-70,Residential,85,Housing,3.6,Affordability,4.2,Diversity,4.7
+West San Jose,-90,70,Mixed Use,125,Housing,4.0,Retail,3.8,Schools,4.0
+Santana Row,20,55,Commercial,200,Retail,5.0,Tourism,4.8,Luxury,4.9
+Communications Hill,45,-65,Residential,145,Property Value,4.4,Views,4.8,Modern,4.6
+SJSU Campus,15,10,Education,110,Education,5.0,Economy,3.8,Culture,4.3
+SAP Center,-25,25,Entertainment,160,Sports,4.8,Events,4.9,Tourism,4.5
+Guadalupe River Park,8,-15,Park,80,Environment,4.7,Recreation,4.5,Wildlife,4.3
+Alviso,130,110,Industrial,70,Jobs,3.5,Environment,2.8,Affordability,4.2
+Coyote Valley,60,-150,Open Space,50,Environment,5.0,Agriculture,4.5,Wildlife,4.8
+Silver Creek,100,0,Residential,130,Housing,4.2,Golf,4.0,Property Value,4.3
+The Alameda,5,35,Historical,115,Culture,4.2,Retail,3.8,Dining,4.5
+San Pedro Square,12,8,Entertainment,140,Dining,4.7,Culture,4.3,Nightlife,4.8
+Little Saigon,-60,-40,Cultural,90,Dining,4.5,Culture,4.7,Small Business,4.4
+Diridon Station Area,-10,20,Transportation,130,Transit,4.8,Connectivity,4.7,Future Growth,4.9
+Los Gatos Creek Trail,30,-45,Recreation,65,Recreation,4.7,Environment,4.6,Health,4.5
+Campbell Border,-75,-90,Residential,115,Housing,3.9,Community,4.0,Schools,4.1
+Mineta San Jose Airport,40,95,Transportation,180,Transit,4.9,Economy,4.4,Tourism,4.3
+Edenvale,85,-95,Industrial,100,Jobs,3.7,Manufacturing,4.0,Affordability,3.8
+Seven Trees,-35,-105,Residential,80,Housing,3.5,Affordability,4.3,Community,3.9
+Rose Garden,-45,45,Residential,145,Housing,4.4,Heritage,4.6,Parks,4.5
+Winchester Mystery House,15,65,Tourism,125,Tourism,4.7,History,4.6,Culture,4.3 

@@ -1,0 +1,1171 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using TMPro;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+public class CitySimulator : MonoBehaviour
+{
+    // Debug settings
+    private string debugLogPath;
+    private StreamWriter debugWriter;
+    private bool isDebugging = true;
+    
+    // File paths
+    public string mapDataPath = "Assets/Resources/san_jose_map_data.csv";
+    public string mapData2024Path = "Assets/Resources/san_jose_map_2024.csv";
+    public bool use2024Map = true;
+    public string budgetDataPath = "Assets/Resources/san_jose_budget.csv";
+    
+    // References to UI elements
+    public GameObject zonePrefab;
+    public RectTransform mapContainer;
+    public TextMeshProUGUI budgetText;
+    public TextMeshProUGUI selectedZoneText;
+    public TextMeshProUGUI instructionsText;
+    public GameObject infoPanel;
+    public ScrollRect mapScrollRect; // Reference to the ScrollRect component
+    
+    // Object pooling settings
+    public int poolSize = 30;
+    private Queue<GameObject> zoneObjectPool;
+    private Dictionary<CityZone, GameObject> activeZoneObjects;
+    
+    // Performance settings
+    public float visibilityMargin = 100f; // Extra margin around viewport to preload zones
+    public float scrollThreshold = 50f; // How far must scroll before we update visible zones
+    public float updateInterval = 0.1f; // Minimum time between visibility updates
+    private float lastUpdateTime = 0f;
+    
+    // Data structures
+    private List<CityZone> zones;
+    private Dictionary<string, BudgetItem> budget;
+    private float totalBudget;
+    private CityZone selectedZone;
+    private bool isDragging;
+    private Vector2 dragOffset;
+    private Vector2 lastViewportPosition;
+    private Rect visibleRect; // Current visible area
+
+    void Awake()
+    {
+        if (isDebugging)
+        {
+            debugLogPath = Path.Combine(Application.persistentDataPath, "city_simulator_debug.log");
+            debugWriter = new StreamWriter(debugLogPath, true);
+            WriteDebugLog("=== CitySimulator Awake ===");
+        }
+    }
+
+    void Start()
+    {
+        WriteDebugLog("CitySimulator starting...");
+        
+        try
+        {
+            // Initialize data structures
+            zones = new List<CityZone>();
+            budget = new Dictionary<string, BudgetItem>();
+            zoneObjectPool = new Queue<GameObject>();
+            activeZoneObjects = new Dictionary<CityZone, GameObject>();
+            
+            WriteDebugLog("Data structures initialized");
+            
+            // Check critical references
+            if (zonePrefab == null || mapContainer == null)
+            {
+                WriteDebugLog("ERROR: Critical components not assigned in Inspector!");
+                return;
+            }
+
+            // Validate UI components
+            ValidateUIComponents();
+            
+            WriteDebugLog("UI components validated");
+
+            // Create zone prefab at runtime if needed
+            if (zonePrefab == null)
+            {
+                WriteDebugLog("Creating default zone prefab");
+                CreateDefaultZonePrefab();
+            }
+            
+            // Setup object pool
+            WriteDebugLog("Initializing object pool");
+            InitializeObjectPool();
+            
+            // Setup scroll rect reference if needed
+            WriteDebugLog("Setting up scroll rect");
+            SetupScrollRect();
+            
+            // Load data
+            WriteDebugLog("Loading game data");
+            LoadGameData();
+            
+            // Initial display update
+            WriteDebugLog("Updating initial display");
+            UpdateVisibleZones();
+            UpdateBudgetDisplay();
+            UpdateInstructionsDisplay();
+            
+            // Set initial viewport position
+            lastViewportPosition = mapScrollRect != null ? 
+                mapScrollRect.content.anchoredPosition : Vector2.zero;
+                
+            WriteDebugLog("CitySimulator initialization complete");
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR during initialization: {e.Message}\n{e.StackTrace}");
+        }
+    }
+
+    private void WriteDebugLog(string message)
+    {
+        if (!isDebugging) return;
+        
+        try
+        {
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+            string logMessage = $"[{timestamp}] {message}";
+            Debug.Log(logMessage);
+            
+            if (debugWriter != null)
+            {
+                debugWriter.WriteLine(logMessage);
+                debugWriter.Flush();
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Error writing to debug log: {e.Message}");
+        }
+    }
+
+    private void ValidateUIComponents()
+    {
+        WriteDebugLog("Validating UI components");
+        
+        if (budgetText == null) WriteDebugLog("WARNING: Budget Text component not assigned");
+        if (selectedZoneText == null) WriteDebugLog("WARNING: Selected Zone Text component not assigned");
+        if (instructionsText == null) WriteDebugLog("WARNING: Instructions Text component not assigned");
+        if (infoPanel == null) WriteDebugLog("WARNING: Info Panel not assigned");
+        if (mapScrollRect == null) WriteDebugLog("WARNING: Map Scroll Rect not assigned");
+    }
+
+    private void SetupScrollRect()
+    {
+        WriteDebugLog("Setting up ScrollRect...");
+        
+        if (mapScrollRect == null)
+        {
+            WriteDebugLog("No ScrollRect found, attempting to create one...");
+            
+            try
+            {
+                // Try to find a ScrollRect in children
+                mapScrollRect = GetComponentInChildren<ScrollRect>();
+                
+                if (mapScrollRect == null)
+                {
+                    WriteDebugLog("No ScrollRect found in children, creating default...");
+                    
+                    // Create a new UI Panel with ScrollRect
+                    GameObject panel = new GameObject("MapPanel");
+                    panel.transform.SetParent(transform, false);
+                    
+                    // Add RectTransform
+                    RectTransform panelRect = panel.AddComponent<RectTransform>();
+                    panelRect.anchorMin = Vector2.zero;
+                    panelRect.anchorMax = Vector2.one;
+                    panelRect.offsetMin = Vector2.zero;
+                    panelRect.offsetMax = Vector2.zero;
+                    
+                    // Add Image component
+                    Image panelImage = panel.AddComponent<Image>();
+                    panelImage.color = new Color(0, 0, 0, 0);
+                    
+                    // Add ScrollRect
+                    mapScrollRect = panel.AddComponent<ScrollRect>();
+                    
+                    // Create content object
+                    GameObject content = new GameObject("Content");
+                    content.transform.SetParent(panel.transform, false);
+                    
+                    // Setup content RectTransform
+                    RectTransform contentRect = content.AddComponent<RectTransform>();
+                    contentRect.anchorMin = Vector2.zero;
+                    contentRect.anchorMax = Vector2.one;
+                    contentRect.offsetMin = Vector2.zero;
+                    contentRect.offsetMax = Vector2.zero;
+                    
+                    // Configure ScrollRect
+                    mapScrollRect.content = contentRect;
+                    mapScrollRect.horizontal = true;
+                    mapScrollRect.vertical = true;
+                    mapScrollRect.movementType = ScrollRect.MovementType.Elastic;
+                    mapScrollRect.elasticity = 0.1f;
+                    mapScrollRect.inertia = true;
+                    mapScrollRect.decelerationRate = 0.135f;
+                    mapScrollRect.scrollSensitivity = 1f;
+                    
+                    // Set mapContainer to content
+                    mapContainer = contentRect;
+                    
+                    WriteDebugLog("Default ScrollRect created successfully");
+                }
+                else
+                {
+                    WriteDebugLog("Found existing ScrollRect in children");
+                }
+            }
+            catch (Exception e)
+            {
+                WriteDebugLog($"ERROR creating ScrollRect: {e.Message}\n{e.StackTrace}");
+                // Disable scrolling functionality but allow the rest to work
+                mapScrollRect = null;
+            }
+        }
+        else
+        {
+            WriteDebugLog("ScrollRect already assigned");
+        }
+        
+        if (mapScrollRect == null)
+        {
+            WriteDebugLog("WARNING: No ScrollRect available. Scrolling functionality will be disabled.");
+        }
+    }
+
+    private void LoadGameData()
+    {
+        WriteDebugLog("Loading game data...");
+        
+        // Determine which map data to use
+        string selectedMapPath = use2024Map ? mapData2024Path : mapDataPath;
+        
+        // Load map data (districts/areas)
+        WriteDebugLog($"Loading map data from: {selectedMapPath}");
+        if (!LoadMapData(selectedMapPath))
+        {
+            WriteDebugLog("ERROR: Failed to load map data");
+        }
+        
+        // Load budget data
+        WriteDebugLog($"Loading budget data from: {budgetDataPath}");
+        if (!LoadBudgetData(budgetDataPath))
+        {
+            WriteDebugLog("ERROR: Failed to load budget data");
+        }
+    }
+
+    private void InitializeObjectPool()
+    {
+        WriteDebugLog("Initializing object pool...");
+        
+        try
+        {
+            if (zonePrefab == null)
+            {
+                WriteDebugLog("ERROR: Zone prefab is null, creating default...");
+                CreateDefaultZonePrefab();
+            }
+            
+            WriteDebugLog($"Initializing object pool with {poolSize} zone objects");
+            
+            // Clear existing pool if any
+            while (zoneObjectPool.Count > 0)
+            {
+                GameObject obj = zoneObjectPool.Dequeue();
+                if (obj != null)
+                {
+                    Destroy(obj);
+                }
+            }
+            
+            // Initialize new pool
+            for (int i = 0; i < poolSize; i++)
+            {
+                try
+                {
+                    WriteDebugLog($"Creating pool object {i + 1}/{poolSize}");
+                    GameObject zoneObj = Instantiate(zonePrefab, mapContainer);
+                    if (zoneObj == null)
+                    {
+                        WriteDebugLog($"ERROR: Failed to create pool object {i + 1}");
+                        continue;
+                    }
+                    
+                    zoneObj.SetActive(false);
+                    PresetupZoneEvents(zoneObj);
+                    zoneObjectPool.Enqueue(zoneObj);
+                }
+                catch (Exception e)
+                {
+                    WriteDebugLog($"ERROR creating pool object {i + 1}: {e.Message}");
+                }
+            }
+            
+            WriteDebugLog($"Object pool initialization complete. Created {zoneObjectPool.Count} objects");
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in InitializeObjectPool: {e.Message}\n{e.StackTrace}");
+        }
+    }
+    
+    private void PresetupZoneEvents(GameObject zoneObj)
+    {
+        WriteDebugLog("Setting up zone events...");
+        
+        try
+        {
+            if (zoneObj == null)
+            {
+                WriteDebugLog("ERROR: Zone object is null");
+                return;
+            }
+            
+            EventTrigger trigger = zoneObj.GetComponent<EventTrigger>();
+            if (trigger == null)
+            {
+                WriteDebugLog("Adding EventTrigger component");
+                trigger = zoneObj.AddComponent<EventTrigger>();
+            }
+            else
+            {
+                WriteDebugLog("Clearing existing EventTrigger");
+                trigger.triggers.Clear();
+            }
+
+            // Setup the event entries
+            EventTrigger.Entry clickEntry = new EventTrigger.Entry();
+            clickEntry.eventID = EventTriggerType.PointerDown;
+            trigger.triggers.Add(clickEntry);
+
+            EventTrigger.Entry dragEntry = new EventTrigger.Entry();
+            dragEntry.eventID = EventTriggerType.Drag;
+            trigger.triggers.Add(dragEntry);
+
+            EventTrigger.Entry endDragEntry = new EventTrigger.Entry();
+            endDragEntry.eventID = EventTriggerType.EndDrag;
+            trigger.triggers.Add(endDragEntry);
+            
+            WriteDebugLog("Zone events setup complete");
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in PresetupZoneEvents: {e.Message}\n{e.StackTrace}");
+        }
+    }
+
+    private void CreateDefaultZonePrefab()
+    {
+        WriteDebugLog("Creating default zone prefab...");
+        
+        try
+        {
+            zonePrefab = new GameObject("ZonePrefab");
+            
+            // Add required components
+            RectTransform rectTransform = zonePrefab.AddComponent<RectTransform>();
+            rectTransform.sizeDelta = new Vector2(50, 50);
+            
+            // Add Image component
+            Image image = zonePrefab.AddComponent<Image>();
+            image.color = new Color(0.8f, 0.8f, 0.8f, 0.7f);
+            
+            // Add text for the name
+            GameObject textObj = new GameObject("NameText");
+            textObj.transform.SetParent(zonePrefab.transform, false);
+            
+            RectTransform textRectTransform = textObj.AddComponent<RectTransform>();
+            textRectTransform.anchorMin = Vector2.zero;
+            textRectTransform.anchorMax = Vector2.one;
+            textRectTransform.offsetMin = Vector2.zero;
+            textRectTransform.offsetMax = Vector2.zero;
+            
+            TextMeshProUGUI nameText = textObj.AddComponent<TextMeshProUGUI>();
+            nameText.alignment = TextAlignmentOptions.Center;
+            nameText.fontSize = 12;
+            nameText.color = Color.black;
+            
+            // Add EventTrigger component
+            zonePrefab.AddComponent<EventTrigger>();
+            
+            // Make it a prefab instance by setting inactive
+            zonePrefab.SetActive(false);
+            
+            WriteDebugLog("Default zone prefab created successfully");
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in CreateDefaultZonePrefab: {e.Message}\n{e.StackTrace}");
+            throw; // Re-throw to be caught by InitializeObjectPool
+        }
+    }
+
+    // Load city map data from CSV
+    private bool LoadMapData(string filename)
+    {
+        try
+        {
+            // Clear any existing zones
+            zones.Clear();
+            
+            // Check if file exists
+            TextAsset csvAsset = Resources.Load<TextAsset>(Path.GetFileNameWithoutExtension(filename));
+            if (csvAsset == null)
+            {
+                // Try to load directly from file system if not in Resources
+                if (!File.Exists(filename))
+                {
+                    WriteDebugLog("WARNING: Map data file not found: " + filename + ". Using default data.");
+                    CreateDefaultMapData();
+                    return true;
+                }
+                
+                string[] lines = File.ReadAllLines(filename);
+                ParseCsvLines(lines);
+            }
+            else
+            {
+                // File exists in Resources, parse it
+                string[] lines = csvAsset.text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                ParseCsvLines(lines);
+            }
+            
+            WriteDebugLog($"Successfully loaded {zones.Count} map zones");
+            return true;
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog("ERROR: Error loading map data: " + e.Message);
+            WriteDebugLog("Using default map data instead.");
+            CreateDefaultMapData();
+            return true;
+        }
+    }
+    
+    private void ParseCsvLines(string[] lines)
+    {
+        // Skip header line
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string[] tokens = lines[i].Split(',');
+
+            if (tokens.Length >= 6)
+            {
+                CityZone zone = new CityZone();
+                zone.name = tokens[0].Trim();
+                zone.position = new Vector2(float.Parse(tokens[1]), float.Parse(tokens[2]));
+                zone.type = tokens[3].Trim();
+                zone.cost = float.Parse(tokens[4]);
+
+                // Parse impacts from remaining tokens
+                for (int j = 5; j < tokens.Length; j += 2)
+                {
+                    if (j + 1 < tokens.Length && !string.IsNullOrEmpty(tokens[j]) && !string.IsNullOrEmpty(tokens[j + 1]))
+                    {
+                        zone.impacts[tokens[j].Trim()] = float.Parse(tokens[j + 1]);
+                    }
+                }
+
+                zones.Add(zone);
+            }
+        }
+    }
+
+    // Create default map data for testing
+    private void CreateDefaultMapData()
+    {
+        zones.Clear();
+        
+        // Add some sample zones
+        CityZone downtown = new CityZone();
+        downtown.name = "Downtown";
+        downtown.position = new Vector2(0, 0);
+        downtown.type = "Commercial";
+        downtown.cost = 150;
+        downtown.impacts["Economy"] = 5.0f;
+        downtown.impacts["Environment"] = -2.0f;
+        zones.Add(downtown);
+        
+        // Add 3 more sample zones
+        CityZone residential = new CityZone();
+        residential.name = "Residential District";
+        residential.position = new Vector2(100, 0);
+        residential.type = "Residential";
+        residential.cost = 100;
+        residential.impacts["Housing"] = 4.0f;
+        residential.impacts["Traffic"] = 3.0f;
+        zones.Add(residential);
+        
+        CityZone park = new CityZone();
+        park.name = "Central Park";
+        park.position = new Vector2(50, 50);
+        park.type = "Park";
+        park.cost = 50;
+        park.impacts["Environment"] = 5.0f;
+        park.impacts["Recreation"] = 4.0f;
+        zones.Add(park);
+        
+        CityZone industrial = new CityZone();
+        industrial.name = "Industrial Area";
+        industrial.position = new Vector2(-100, -50);
+        industrial.type = "Industrial";
+        industrial.cost = 120;
+        industrial.impacts["Economy"] = 4.0f;
+        industrial.impacts["Environment"] = -3.0f;
+        industrial.impacts["Jobs"] = 5.0f;
+        zones.Add(industrial);
+        
+        WriteDebugLog("Created default map with " + zones.Count + " zones");
+    }
+
+    // Load budget data from CSV
+    private bool LoadBudgetData(string filename)
+    {
+        try
+        {
+            // Clear any existing budget
+            budget.Clear();
+            totalBudget = 0;
+            
+            // Try to load from Resources first
+            TextAsset csvAsset = Resources.Load<TextAsset>(Path.GetFileNameWithoutExtension(filename));
+            if (csvAsset == null)
+            {
+                // Try to load directly from file system if not in Resources
+                if (!File.Exists(filename))
+                {
+                    WriteDebugLog("WARNING: Budget data file not found: " + filename + ". Using default data.");
+                    CreateDefaultBudgetData();
+                    return true;
+                }
+                
+                string[] lines = File.ReadAllLines(filename);
+                ParseBudgetCsvLines(lines);
+            }
+            else
+            {
+                // File exists in Resources, parse it
+                string[] lines = csvAsset.text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                ParseBudgetCsvLines(lines);
+            }
+            
+            WriteDebugLog($"Successfully loaded budget data with {budget.Count} items");
+            return true;
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog("ERROR: Error loading budget data: " + e.Message);
+            WriteDebugLog("Using default budget data instead.");
+            CreateDefaultBudgetData();
+            return true;
+        }
+    }
+    
+    private void ParseBudgetCsvLines(string[] lines)
+    {
+        // Skip header line
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string[] tokens = lines[i].Split(',');
+
+            if (tokens.Length >= 4)
+            {
+                BudgetItem item = new BudgetItem();
+                item.name = tokens[0].Trim();
+                item.allocated = float.Parse(tokens[1]);
+                item.spent = float.Parse(tokens[2]);
+                item.category = tokens[3].Trim();
+
+                budget[item.name] = item;
+                totalBudget += item.allocated;
+            }
+        }
+    }
+
+    // Create default budget data for testing
+    private void CreateDefaultBudgetData()
+    {
+        budget.Clear();
+        totalBudget = 0;
+        
+        // Add sample budget items
+        AddBudgetItem("Public Safety", 500, 450, "Safety");
+        AddBudgetItem("Parks & Recreation", 200, 180, "Recreation");
+        AddBudgetItem("Infrastructure", 400, 350, "Infrastructure");
+        AddBudgetItem("Public Transportation", 300, 290, "Transportation");
+        AddBudgetItem("Education", 450, 430, "Education");
+        AddBudgetItem("Healthcare", 350, 320, "Healthcare");
+    }
+
+    private void AddBudgetItem(string name, float allocated, float spent, string category)
+    {
+        BudgetItem item = new BudgetItem();
+        item.name = name;
+        item.allocated = allocated;
+        item.spent = spent;
+        item.category = category;
+        
+        budget[item.name] = item;
+        totalBudget += item.allocated;
+    }
+
+    // Calculate visible area and update zone objects
+    private void UpdateVisibleZones()
+    {
+        if (mapContainer == null || zones == null || zones.Count == 0)
+        {
+            WriteDebugLog("WARNING: Cannot update visible zones - missing required components");
+            return;
+        }
+
+        try
+        {
+            // Calculate viewport bounds
+            CalculateVisibleRect();
+            
+            // Keep track of zones to show and hide
+            HashSet<CityZone> visibleZones = new HashSet<CityZone>();
+            List<CityZone> zonesToHide = new List<CityZone>();
+
+            // First pass: identify visible zones
+            foreach (CityZone zone in zones)
+            {
+                bool isVisible = IsZoneVisible(zone);
+                if (isVisible)
+                {
+                    visibleZones.Add(zone);
+                }
+            }
+
+            // Second pass: handle zone objects
+            foreach (var kvp in activeZoneObjects)
+            {
+                if (!visibleZones.Contains(kvp.Key))
+                {
+                    zonesToHide.Add(kvp.Key);
+                }
+            }
+
+            // Hide zones that are no longer visible
+            foreach (var zone in zonesToHide)
+            {
+                HideZone(zone);
+            }
+
+            // Show newly visible zones
+            foreach (CityZone zone in visibleZones)
+            {
+                if (!activeZoneObjects.ContainsKey(zone))
+                {
+                    ShowZone(zone);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in UpdateVisibleZones: {e.Message}\n{e.StackTrace}");
+        }
+    }
+    
+    private void CalculateVisibleRect()
+    {
+        if (mapScrollRect != null && mapScrollRect.viewport != null)
+        {
+            // Get viewport corners
+            Vector3[] viewportCorners = new Vector3[4];
+            mapScrollRect.viewport.GetWorldCorners(viewportCorners);
+            
+            // Convert to rect in world space
+            float minX = float.MaxValue, maxX = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
+            
+            for (int i = 0; i < 4; i++)
+            {
+                minX = Mathf.Min(minX, viewportCorners[i].x);
+                maxX = Mathf.Max(maxX, viewportCorners[i].x);
+                minY = Mathf.Min(minY, viewportCorners[i].y);
+                maxY = Mathf.Max(maxY, viewportCorners[i].y);
+            }
+            
+            // Add margins
+            minX -= visibilityMargin;
+            maxX += visibilityMargin;
+            minY -= visibilityMargin;
+            maxY += visibilityMargin;
+            
+            // Store as rect
+            visibleRect = new Rect(minX, minY, maxX - minX, maxY - minY);
+        }
+        else
+        {
+            // Fallback - very large rectangle
+            visibleRect = new Rect(-5000, -5000, 10000, 10000);
+        }
+    }
+    
+    private bool IsZoneVisible(CityZone zone)
+    {
+        // Get world position of zone
+        Vector3 worldPos = mapContainer.TransformPoint(new Vector3(zone.position.x, zone.position.y, 0));
+        
+        // Check if in visible rect
+        return visibleRect.Contains(new Vector2(worldPos.x, worldPos.y));
+    }
+
+    // Show a zone object
+    private void ShowZone(CityZone zone)
+    {
+        // Get object from pool
+        GameObject zoneObj = GetZoneFromPool();
+        
+        // Configure for this zone
+        ConfigureZoneObject(zoneObj, zone);
+        
+        // Track it
+        activeZoneObjects[zone] = zoneObj;
+    }
+    
+    // Hide a zone object
+    private void HideZone(CityZone zone)
+    {
+        if (activeZoneObjects.TryGetValue(zone, out GameObject zoneObj))
+        {
+            // Return to pool
+            ReturnZoneToPool(zoneObj);
+            
+            // Remove tracking
+            activeZoneObjects.Remove(zone);
+        }
+    }
+    
+    // Get a zone from the object pool
+    private GameObject GetZoneFromPool()
+    {
+        GameObject zoneObj;
+        
+        if (zoneObjectPool.Count > 0)
+        {
+            zoneObj = zoneObjectPool.Dequeue();
+        }
+        else
+        {
+            // Create new object if pool is empty
+            WriteDebugLog("WARNING: Object pool depleted, creating new zone object");
+            zoneObj = Instantiate(zonePrefab, mapContainer);
+            PresetupZoneEvents(zoneObj);
+        }
+        
+        return zoneObj;
+    }
+    
+    // Return a zone to the object pool
+    private void ReturnZoneToPool(GameObject zoneObj)
+    {
+        // Reset and deactivate
+        zoneObj.SetActive(false);
+        
+        // Add back to pool
+        zoneObjectPool.Enqueue(zoneObj);
+    }
+
+    // Configure a zone object for a specific zone
+    private void ConfigureZoneObject(GameObject zoneObj, CityZone zone)
+    {
+        zoneObj.SetActive(true);
+        
+        // Set position
+        RectTransform rectTransform = zoneObj.GetComponent<RectTransform>();
+        rectTransform.anchoredPosition = zone.position;
+        rectTransform.sizeDelta = new Vector2(50, 50);
+
+        // Set color based on zone type
+        Image image = zoneObj.GetComponent<Image>();
+        switch (zone.type.ToLower())
+        {
+            case "residential":
+                image.color = new Color(0, 0.5f, 1f, 0.7f); // Blue
+                break;
+            case "commercial":
+                image.color = new Color(1f, 0.5f, 0, 0.7f); // Orange
+                break;
+            case "industrial":
+                image.color = new Color(0.5f, 0.5f, 0.5f, 0.7f); // Gray
+                break;
+            case "park":
+            case "open space":
+                image.color = new Color(0, 1f, 0, 0.7f); // Green
+                break;
+            case "cultural":
+                image.color = new Color(1f, 0, 1f, 0.7f); // Magenta
+                break;
+            case "transportation":
+                image.color = new Color(1f, 1f, 0, 0.7f); // Yellow
+                break;
+            case "education":
+                image.color = new Color(0, 1f, 1f, 0.7f); // Cyan
+                break;
+            case "entertainment":
+                image.color = new Color(1f, 0, 0, 0.7f); // Red
+                break;
+            default:
+                image.color = new Color(0.8f, 0.8f, 0.8f, 0.7f); // Light gray
+                break;
+        }
+
+        // Highlight if selected
+        if (zone == selectedZone)
+        {
+            image.color = new Color(image.color.r, image.color.g, image.color.b, 0.9f);
+            zoneObj.transform.SetAsLastSibling();
+        }
+
+        // Set name
+        TextMeshProUGUI nameText = zoneObj.GetComponentInChildren<TextMeshProUGUI>();
+        if (nameText != null)
+        {
+            nameText.text = zone.name;
+        }
+
+        // Connect event callbacks
+        SetupZoneCallbacks(zoneObj, zone);
+    }
+    
+    // Setup zone callbacks
+    private void SetupZoneCallbacks(GameObject zoneObj, CityZone zone)
+    {
+        EventTrigger trigger = zoneObj.GetComponent<EventTrigger>();
+        if (trigger != null && trigger.triggers.Count >= 3)
+        {
+            // Click event
+            trigger.triggers[0].callback = new EventTrigger.TriggerEvent();
+            trigger.triggers[0].callback.AddListener((data) => { OnZoneClick(zone, (PointerEventData)data); });
+
+            // Drag event
+            trigger.triggers[1].callback = new EventTrigger.TriggerEvent();
+            trigger.triggers[1].callback.AddListener((data) => { OnZoneDrag(zone, (PointerEventData)data); });
+
+            // End drag event
+            trigger.triggers[2].callback = new EventTrigger.TriggerEvent();
+            trigger.triggers[2].callback.AddListener((data) => { OnZoneEndDrag(zone); });
+        }
+    }
+
+    // Handle zone click
+    public void OnZoneClick(CityZone zone, PointerEventData eventData)
+    {
+        if (zone == null) return;
+        
+        selectedZone = zone;
+        isDragging = true;
+
+        try
+        {
+            // Calculate drag offset
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                mapContainer,
+                eventData.position,
+                eventData.pressEventCamera,
+                out Vector2 localPoint);
+
+            dragOffset = zone.position - localPoint;
+
+            // Update UI
+            UpdateSelectedZoneDisplay();
+
+            // Highlight selected zone and reset others
+            foreach (var kvp in activeZoneObjects)
+            {
+                if (kvp.Value == null) continue;
+                
+                Image image = kvp.Value.GetComponent<Image>();
+                if (image == null) continue;
+                
+                if (kvp.Key == selectedZone)
+                {
+                    image.color = new Color(image.color.r, image.color.g, image.color.b, 0.9f);
+                    kvp.Value.transform.SetAsLastSibling(); // Bring to front
+                }
+                else
+                {
+                    image.color = new Color(image.color.r, image.color.g, image.color.b, 0.7f);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in OnZoneClick: {e.Message}");
+            isDragging = false;
+        }
+    }
+
+    // Handle zone drag
+    public void OnZoneDrag(CityZone zone, PointerEventData eventData)
+    {
+        if (isDragging && zone == selectedZone)
+        {
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                mapContainer,
+                eventData.position,
+                eventData.pressEventCamera,
+                out Vector2 localPoint);
+
+            zone.position = localPoint + dragOffset;
+            
+            // Update the position of the GameObject
+            if (activeZoneObjects.TryGetValue(zone, out GameObject zoneObj))
+            {
+                RectTransform rectTransform = zoneObj.GetComponent<RectTransform>();
+                rectTransform.anchoredPosition = zone.position;
+            }
+        }
+    }
+
+    // Handle end of drag
+    public void OnZoneEndDrag(CityZone zone)
+    {
+        if (zone == selectedZone)
+        {
+            isDragging = false;
+            // Calculate budget impact
+            CalculateBudgetImpact();
+        }
+    }
+
+    // Calculate budget impact of changes (simplified)
+    private void CalculateBudgetImpact()
+    {
+        // This would be more complex in a real app
+        UpdateBudgetDisplay();
+    }
+
+    // Update budget display
+    private void UpdateBudgetDisplay()
+    {
+        if (budgetText != null)
+        {
+            string text = "San Jose City Budget\n\n";
+            text += "Total: $" + totalBudget.ToString("N0") + " million\n\n";
+
+            // Group by category
+            Dictionary<string, float> categoryTotals = new Dictionary<string, float>();
+            foreach (var item in budget.Values)
+            {
+                if (!categoryTotals.ContainsKey(item.category))
+                {
+                    categoryTotals[item.category] = 0;
+                }
+                categoryTotals[item.category] += item.allocated;
+            }
+
+            // Display categories
+            foreach (var category in categoryTotals)
+            {
+                text += category.Key + ": $" + category.Value.ToString("N0") + " million\n";
+            }
+
+            budgetText.text = text;
+        }
+    }
+
+    // Update selected zone display
+    private void UpdateSelectedZoneDisplay()
+    {
+        if (selectedZoneText != null && selectedZone != null)
+        {
+            string text = "Selected: " + selectedZone.name + "\n";
+            text += "Type: " + selectedZone.type + "\n";
+            text += "Cost: $" + selectedZone.cost.ToString("N0") + " million\n\n";
+
+            text += "Impacts:\n";
+            foreach (var impact in selectedZone.impacts)
+            {
+                text += impact.Key + ": " + impact.Value.ToString("N1") + "\n";
+            }
+
+            selectedZoneText.text = text;
+            infoPanel.SetActive(true);
+        }
+        else if (selectedZoneText != null)
+        {
+            selectedZoneText.text = "No zone selected";
+            infoPanel.SetActive(false);
+        }
+    }
+
+    // Update instructions display
+    private void UpdateInstructionsDisplay()
+    {
+        if (instructionsText != null)
+        {
+            instructionsText.text = "Instructions:\n" +
+                "- Click to select a zone\n" +
+                "- Drag to move zones\n" +
+                "- See budget impact in panel\n" +
+                "- ESC to save and quit";
+        }
+    }
+
+    // Save state to CSV
+    public void SaveState()
+    {
+        try
+        {
+            // Create temporary lists
+            List<string> lines = new List<string>();
+            
+            // Header
+            lines.Add("Name,X,Y,Type,Cost,Impact1,Value1,Impact2,Value2,Impact3,Value3");
+            
+            // Zone data
+            foreach (CityZone zone in zones)
+            {
+                string line = zone.name + "," + 
+                           zone.position.x + "," + 
+                           zone.position.y + "," + 
+                           zone.type + "," + 
+                           zone.cost;
+                           
+                // Add impacts (up to 3)
+                int impactCount = 0;
+                foreach (var impact in zone.impacts)
+                {
+                    line += "," + impact.Key + "," + impact.Value;
+                    impactCount++;
+                    if (impactCount >= 3) break;
+                }
+                
+                // Pad with empty impacts if needed
+                for (int i = impactCount; i < 3; i++)
+                {
+                    line += ",,";
+                }
+                
+                lines.Add(line);
+            }
+            
+            // Write to file
+            File.WriteAllLines(use2024Map ? mapData2024Path : mapDataPath, lines);
+            
+            WriteDebugLog("State saved to " + (use2024Map ? mapData2024Path : mapDataPath));
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog("ERROR: Error saving state: " + e.Message);
+        }
+    }
+
+    void Update()
+    {
+        try
+        {
+            // Check for ESC key to save and quit
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                WriteDebugLog("ESC pressed - saving and quitting");
+                SaveState();
+                #if UNITY_EDITOR
+                EditorApplication.isPlaying = false;
+                #else
+                Application.Quit();
+                #endif
+            }
+            
+            // Check if we need to update visible zones (when scrolling/panning)
+            if (mapScrollRect != null && mapScrollRect.content != null)
+            {
+                Vector2 currentPos = mapScrollRect.content.anchoredPosition;
+                if (Vector2.Distance(currentPos, lastViewportPosition) > scrollThreshold)
+                {
+                    // Only update if enough time has passed since last update
+                    if (Time.time - lastUpdateTime >= updateInterval)
+                    {
+                        WriteDebugLog("Updating visible zones due to scroll");
+                        lastViewportPosition = currentPos;
+                        UpdateVisibleZones();
+                        lastUpdateTime = Time.time;
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR in Update: {e.Message}\n{e.StackTrace}");
+        }
+    }
+
+    private void OnDestroy()
+    {
+        WriteDebugLog("Cleaning up CitySimulator");
+        
+        try
+        {
+            // Clean up event listeners
+            foreach (var kvp in activeZoneObjects)
+            {
+                if (kvp.Value != null)
+                {
+                    EventTrigger trigger = kvp.Value.GetComponent<EventTrigger>();
+                    if (trigger != null)
+                    {
+                        trigger.triggers.Clear();
+                    }
+                }
+            }
+            
+            // Clear object pool
+            while (zoneObjectPool.Count > 0)
+            {
+                GameObject obj = zoneObjectPool.Dequeue();
+                if (obj != null)
+                {
+                    Destroy(obj);
+                }
+            }
+            
+            // Close debug writer
+            if (debugWriter != null)
+            {
+                debugWriter.Close();
+                debugWriter = null;
+            }
+            
+            WriteDebugLog("CitySimulator cleanup complete");
+        }
+        catch (Exception e)
+        {
+            WriteDebugLog($"ERROR during cleanup: {e.Message}");
+        }
+    }
+}
+
+// Structure to represent a city zone
+[System.Serializable]
+public class CityZone
+{
+    public string name;
+    public Vector2 position;
+    public string type;
+    public float cost;
+    public Dictionary<string, float> impacts = new Dictionary<string, float>();
+}
+
+// Budget item representation
+[System.Serializable]
+public class BudgetItem
+{
+    public string name;
+    public float allocated;
+    public float spent;
+    public string category;
+} 

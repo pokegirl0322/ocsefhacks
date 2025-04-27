@@ -1,0 +1,21 @@
+Name,X,Y,Type,Cost,Impact1,Value1,Impact2,Value2,Impact3,Value3
+Downtown,0,0,Commercial,150,Economy,5.0,Environment,-2.0,Jobs,4.5
+Residential District,100,0,Residential,100,Housing,4.0,Traffic,3.0,Economy,2.5
+Central Park,50,50,Park,50,Environment,5.0,Recreation,4.0,Health,3.5
+Industrial Area,-100,-50,Industrial,120,Economy,4.0,Environment,-3.0,Jobs,5.0
+Tech Campus,-50,100,Commercial,200,Economy,4.5,Jobs,4.0,Innovation,5.0
+Willow Glen,150,100,Residential,90,Housing,3.5,Community,4.0,Recreation,3.0
+Japantown,75,-75,Commercial,80,Economy,3.0,Tourism,4.0,Culture,4.5
+Rose Garden,-25,-150,Residential,110,Housing,4.2,Community,3.8,Environment,3.0
+Alviso,200,-100,Industrial,85,Economy,3.0,Environment,-2.5,Jobs,3.5
+Communications Hill,-150,150,Residential,120,Housing,4.5,Traffic,2.5,View,4.8
+Santana Row,50,-200,Commercial,180,Economy,4.8,Tourism,4.5,Luxury,5.0
+East Foothills,250,200,Residential,70,Housing,3.0,Environment,3.5,Cost,2.0
+Berryessa,-200,50,Residential,95,Housing,3.8,Community,3.5,Schools,4.0
+Evergreen,-180,-200,Residential,85,Housing,3.5,Environment,4.0,Schools,3.8
+Alum Rock,300,-50,Residential,75,Housing,3.2,Community,3.0,Cost,1.8
+SJSU Campus,25,150,Education,130,Education,5.0,Economy,3.5,Innovation,4.0
+Municipal Stadium,-250,-100,Recreation,60,Recreation,4.2,Community,3.5,Tourism,3.0
+Guadalupe River Park,120,-150,Park,45,Environment,4.5,Recreation,4.2,Health,3.8
+North San Jose,175,175,Industrial,110,Economy,3.8,Jobs,4.2,Environment,-2.0
+Civic Center,-75,-220,Government,140,Government,4.5,Services,4.0,Community,3.5 

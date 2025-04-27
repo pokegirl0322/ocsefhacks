@@ -1,0 +1,355 @@
+{
+  "areas": [
+    {
+      "id": 0,
+      "name": "North San Jose",
+      "coordinates": {"x": 70, "y": 80},
+      "type": "Industrial",
+      "cost": 150,
+      "developed": false,
+      "impacts": {
+        "Jobs": 4.8,
+        "Economy": 4.5,
+        "Innovation": 4.2
+      }
+    },
+    {
+      "id": 1,
+      "name": "Alum Rock",
+      "coordinates": {"x": -80, "y": -60},
+      "type": "Residential",
+      "cost": 90,
+      "developed": false,
+      "impacts": {
+        "Housing": 3.8,
+        "Community": 3.5,
+        "Affordability": 4.0
+      }
+    },
+    {
+      "id": 2,
+      "name": "Cambrian Park",
+      "coordinates": {"x": -110, "y": 25},
+      "type": "Residential",
+      "cost": 115,
+      "developed": false,
+      "impacts": {
+        "Housing": 4.0,
+        "Schools": 4.2,
+        "Parks": 3.8
+      }
+    },
+    {
+      "id": 3,
+      "name": "Almaden Valley",
+      "coordinates": {"x": -40, "y": -120},
+      "type": "Residential",
+      "cost": 140,
+      "developed": false,
+      "impacts": {
+        "Property Value": 4.5,
+        "Schools": 4.6,
+        "Environment": 4.4
+      }
+    },
+    {
+      "id": 4,
+      "name": "Berryessa",
+      "coordinates": {"x": 60, "y": -75},
+      "type": "Residential",
+      "cost": 105,
+      "developed": false,
+      "impacts": {
+        "Housing": 4.0,
+        "Recreation": 3.8,
+        "Schools": 4.1
+      }
+    },
+    {
+      "id": 5,
+      "name": "Evergreen",
+      "coordinates": {"x": 120, "y": -40},
+      "type": "Residential",
+      "cost": 110,
+      "developed": false,
+      "impacts": {
+        "Housing": 4.1,
+        "Environment": 4.0,
+        "Schools": 3.9
+      }
+    },
+    {
+      "id": 6,
+      "name": "East San Jose",
+      "coordinates": {"x": -20, "y": -70},
+      "type": "Residential",
+      "cost": 85,
+      "developed": false,
+      "impacts": {
+        "Housing": 3.6,
+        "Affordability": 4.2,
+        "Diversity": 4.7
+      }
+    },
+    {
+      "id": 7,
+      "name": "West San Jose",
+      "coordinates": {"x": -90, "y": 70},
+      "type": "Mixed Use",
+      "cost": 125,
+      "developed": false,
+      "impacts": {
+        "Housing": 4.0,
+        "Retail": 3.8,
+        "Schools": 4.0
+      }
+    },
+    {
+      "id": 8,
+      "name": "Santana Row",
+      "coordinates": {"x": 20, "y": 55},
+      "type": "Commercial",
+      "cost": 200,
+      "developed": false,
+      "impacts": {
+        "Retail": 5.0,
+        "Tourism": 4.8,
+        "Luxury": 4.9
+      }
+    },
+    {
+      "id": 9,
+      "name": "Communications Hill",
+      "coordinates": {"x": 45, "y": -65},
+      "type": "Residential",
+      "cost": 145,
+      "developed": false,
+      "impacts": {
+        "Property Value": 4.4,
+        "Views": 4.8,
+        "Modern": 4.6
+      }
+    },
+    {
+      "id": 10,
+      "name": "SJSU Campus",
+      "coordinates": {"x": 15, "y": 10},
+      "type": "Education",
+      "cost": 110,
+      "developed": false,
+      "impacts": {
+        "Education": 5.0,
+        "Economy": 3.8,
+        "Culture": 4.3
+      }
+    },
+    {
+      "id": 11,
+      "name": "SAP Center",
+      "coordinates": {"x": -25, "y": 25},
+      "type": "Entertainment",
+      "cost": 160,
+      "developed": false,
+      "impacts": {
+        "Sports": 4.8,
+        "Events": 4.9,
+        "Tourism": 4.5
+      }
+    },
+    {
+      "id": 12,
+      "name": "Guadalupe River Park",
+      "coordinates": {"x": 8, "y": -15},
+      "type": "Park",
+      "cost": 80,
+      "developed": false,
+      "impacts": {
+        "Environment": 4.7,
+        "Recreation": 4.5,
+        "Wildlife": 4.3
+      }
+    },
+    {
+      "id": 13,
+      "name": "Alviso",
+      "coordinates": {"x": 130, "y": 110},
+      "type": "Industrial",
+      "cost": 70,
+      "developed": false,
+      "impacts": {
+        "Jobs": 3.5,
+        "Environment": 2.8,
+        "Affordability": 4.2
+      }
+    },
+    {
+      "id": 14,
+      "name": "Coyote Valley",
+      "coordinates": {"x": 60, "y": -150},
+      "type": "Open Space",
+      "cost": 50,
+      "developed": false,
+      "impacts": {
+        "Environment": 5.0,
+        "Agriculture": 4.5,
+        "Wildlife": 4.8
+      }
+    },
+    {
+      "id": 15,
+      "name": "Silver Creek",
+      "coordinates": {"x": 100, "y": 0},
+      "type": "Residential",
+      "cost": 130,
+      "developed": false,
+      "impacts": {
+        "Housing": 4.2,
+        "Golf": 4.0,
+        "Property Value": 4.3
+      }
+    },
+    {
+      "id": 16,
+      "name": "The Alameda",
+      "coordinates": {"x": 5, "y": 35},
+      "type": "Historical",
+      "cost": 115,
+      "developed": false,
+      "impacts": {
+        "Culture": 4.2,
+        "Retail": 3.8,
+        "Dining": 4.5
+      }
+    },
+    {
+      "id": 17,
+      "name": "San Pedro Square",
+      "coordinates": {"x": 12, "y": 8},
+      "type": "Entertainment",
+      "cost": 140,
+      "developed": false,
+      "impacts": {
+        "Dining": 4.7,
+        "Culture": 4.3,
+        "Nightlife": 4.8
+      }
+    },
+    {
+      "id": 18,
+      "name": "Little Saigon",
+      "coordinates": {"x": -60, "y": -40},
+      "type": "Cultural",
+      "cost": 90,
+      "developed": false,
+      "impacts": {
+        "Dining": 4.5,
+        "Culture": 4.7,
+        "Small Business": 4.4
+      }
+    },
+    {
+      "id": 19,
+      "name": "Diridon Station Area",
+      "coordinates": {"x": -10, "y": 20},
+      "type": "Transportation",
+      "cost": 130,
+      "developed": false,
+      "impacts": {
+        "Transit": 4.8,
+        "Connectivity": 4.7,
+        "Future Growth": 4.9
+      }
+    },
+    {
+      "id": 20,
+      "name": "Los Gatos Creek Trail",
+      "coordinates": {"x": 30, "y": -45},
+      "type": "Recreation",
+      "cost": 65,
+      "developed": false,
+      "impacts": {
+        "Recreation": 4.7,
+        "Environment": 4.6,
+        "Health": 4.5
+      }
+    },
+    {
+      "id": 21,
+      "name": "Campbell Border",
+      "coordinates": {"x": -75, "y": -90},
+      "type": "Residential",
+      "cost": 115,
+      "developed": false,
+      "impacts": {
+        "Housing": 3.9,
+        "Community": 4.0,
+        "Schools": 4.1
+      }
+    },
+    {
+      "id": 22,
+      "name": "Mineta San Jose Airport",
+      "coordinates": {"x": 40, "y": 95},
+      "type": "Transportation",
+      "cost": 180,
+      "developed": false,
+      "impacts": {
+        "Transit": 4.9,
+        "Economy": 4.4,
+        "Tourism": 4.3
+      }
+    },
+    {
+      "id": 23,
+      "name": "Edenvale",
+      "coordinates": {"x": 85, "y": -95},
+      "type": "Industrial",
+      "cost": 100,
+      "developed": false,
+      "impacts": {
+        "Jobs": 3.7,
+        "Manufacturing": 4.0,
+        "Affordability": 3.8
+      }
+    },
+    {
+      "id": 24,
+      "name": "Seven Trees",
+      "coordinates": {"x": -35, "y": -105},
+      "type": "Residential",
+      "cost": 80,
+      "developed": false,
+      "impacts": {
+        "Housing": 3.5,
+        "Affordability": 4.3,
+        "Community": 3.9
+      }
+    },
+    {
+      "id": 25,
+      "name": "Rose Garden",
+      "coordinates": {"x": -45, "y": 45},
+      "type": "Residential",
+      "cost": 145,
+      "developed": false,
+      "impacts": {
+        "Housing": 4.4,
+        "Heritage": 4.6,
+        "Parks": 4.5
+      }
+    },
+    {
+      "id": 26,
+      "name": "Winchester Mystery House",
+      "coordinates": {"x": 15, "y": 65},
+      "type": "Tourism",
+      "cost": 125,
+      "developed": false,
+      "impacts": {
+        "Tourism": 4.7,
+        "History": 4.6,
+        "Culture": 4.3
+      }
+    }
+  ]
+} 
